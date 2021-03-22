@@ -32,6 +32,7 @@ module Data.Chimera
   , tabulateFix'
   , iterate
   , cycle
+  , fromList
 
   -- * Elimination
   , index
@@ -55,6 +56,9 @@ import Control.Monad.Fix
 import Control.Monad.Zip
 import Data.Bits
 import Data.Functor.Identity
+import Data.Tuple (swap)
+import Data.List (genericSplitAt, mapAccumL)
+import qualified Data.List as L
 import qualified Data.Vector as V
 import qualified Data.Vector.Generic as G
 import qualified Data.Vector.Unboxed as U
@@ -362,6 +366,22 @@ cycle vec = case l of
   _ -> tabulate (G.unsafeIndex vec . word2int . (`rem` l))
   where
     l = int2word $ G.length vec
+
+-- | Create a chimera from an infinite list. Undefined behavior for finite lists
+fromList :: forall a v. G.Vector v a => [a] -> Chimera v a
+fromList xs =
+    Chimera
+  $ V.fromList
+  $ fmap G.fromList
+  $ take bits
+  $ snd
+  $ mapAccumL chop xs pows
+  where
+    pows :: [Word]
+    pows = 1 : L.iterate (`unsafeShiftL` 1) 1
+
+    chop :: [a] -> Word -> ([a], [a])
+    chop ys i = swap $ genericSplitAt i ys
 
 -- | Memoize a function:
 -- repeating calls to 'memoize' @f@ @n@
